@@ -1,0 +1,18 @@
+﻿<?xml version="1.0"?>
+<Template>
+	<TemplateConfiguration>
+		<_Name>Empty Project</_Name>
+		<Category>other/misc/cucumber</Category>
+		<Icon>md-project</Icon>
+		<LanguageName>Cucumber</LanguageName>
+		<_Description>Creates an empty cucumber solution.</_Description>
+		<DefaultFilename>EmptyCucumberProject</DefaultFilename>
+		<GroupId>md-empty-project</GroupId>
+		<FileExtension>.cuproj</FileExtension>
+	</TemplateConfiguration>
+	<Actions>
+	</Actions>
+	<Combine name = "${ProjectName}" directory = ".">
+		<Project name = "${ProjectName}" directory = "." type = "Cucumber" />
+	</Combine>
+</Template>

@@ -1,0 +1,122 @@
+﻿<SyntaxMode name="Gherkin" mimeTypes="text/x-gherkin">
+	<Property name="LineComment">#</Property>
+	<Property name="StringQuote">"</Property>
+	<Property name="StringQuote">'</Property>
+	<Span tagColor="Keyword(Namespace)" rule="Feature">
+		<Begin flags="FirstNonWs,NewWord">Feature:</Begin>
+		<Exit>Feature:</Exit>
+	</Span>
+	<Rule name="Feature">
+		<Span tagColor="Keyword(Declaration)" rule="Scenario">
+			<Begin flags="FirstNonWs,NewWord">Background:</Begin>
+			<Exit>Feature:|Scenario:|Scenario Outline:</Exit>
+		</Span>
+		<Span tagColor="Keyword(Declaration)" rule="Scenario">
+			<Begin flags="FirstNonWs,NewWord">Scenario:</Begin>
+			<Exit>Feature:|Scenario:|Scenario Outline:</Exit>
+		</Span>
+		<Span tagColor="Keyword(Declaration)" rule="ScenarioOutline">
+			<Begin flags="FirstNonWs,NewWord">Scenario Outline:</Begin>
+			<Exit>Feature:|Scenario:|Scenario Outline:</Exit>
+		</Span>
+	</Rule>
+	<Rule name="Scenario">
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">Given</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">When</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">Then</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">And</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">But</Begin>
+		</Span>
+		<Span color="Keyword(Constants)" tagColor="Xml Attribute" rule="TableHeader">
+			<Begin>|</Begin>
+			<End>|</End>
+		</Span>
+		<Span color="String">
+			<Begin flags="FirstNonWs">"""</Begin>
+			<End>"""</End>
+		</Span>
+	</Rule>
+	<Rule name="ScenarioOutline">
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">Given</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">When</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">Then</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">And</Begin>
+		</Span>
+		<Span tagColor="User Types" rule="Action" stopateol="true">
+			<Begin flags="FirstNonWs,NewWord">But</Begin>
+		</Span>
+		<Span color="Keyword(Constants)" tagColor="Xml Attribute" rule="TableHeader">
+			<Begin>|</Begin>
+			<End>|</End>
+		</Span>
+		<Span color="String" rule="Multiline">
+			<Begin flags="FirstNonWs">"""</Begin>
+			<End>"""</End>
+		</Span>
+		<Span tagColor="Keyword(Declaration)" rule="Examples">
+			<Begin flags="FirstNonWs,NewWord">Examples:</Begin>
+			<Exit>Feature:|Scenario:|Scenario Outline:</Exit>
+		</Span>
+	</Rule>
+
+	<Rule name="Examples">
+		<Span color="Keyword(Constants)" tagColor="Xml Attribute" rule="TableHeader">
+			<Begin>|</Begin>
+			<End>|</End>
+		</Span>
+	</Rule>
+	<EolSpan color="Comment(Line)" rule="Comment" tagColor="Comment Tag">#</EolSpan>
+	<Rule name="Action">
+		<Span color="Keyword(Constants)" rule="String" stopateol="true">
+			<Begin>&lt;</Begin>
+			<End>&gt;</End>
+		</Span>
+		<Span color="String" rule="String" stopateol="true" escape="\&quot;|\\">
+			<Begin>"</Begin>
+			<End>"</End>
+		</Span>
+		<Span color="String" rule="String" stopateol="true" escape="\'|\\">
+			<Begin>'</Begin>
+			<End>'</End>
+		</Span>
+		<Match color="Number">CSharpNumber</Match>
+	</Rule>
+	<Rule name="Table">
+		<Match color="Number">CSharpNumber</Match>
+		<Match color="Xml Attribute">\|</Match>
+		<Match color="String">\\\|</Match>
+		<Span color="String" rule="String" stopateol="true" escape="\&quot;|\\">
+			<Begin>"</Begin>
+			<End>"</End>
+		</Span>
+		<Span color="String" rule="String" stopateol="true" escape="\'|\\">
+			<Begin>'</Begin>
+			<End>'</End>
+		</Span>
+	</Rule>
+	<Rule name="TableHeader">
+		<Match color="Xml Attribute">\|</Match>
+		<Match color="Keyword(Constants)">\\\|</Match>
+		<Match color="Plain Text">[^|]*$</Match>
+		<Span color="String" tagColor="Xml Attribute" rule="Table" stopateol="true">
+			<Begin>|</Begin>
+			<End>|</End>
+		</Span>
+	</Rule>
+</SyntaxMode>

@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Template
+	Language="Gherkin">
+	
+	<TemplateConfiguration>
+		<_Name>Empty Feature File</_Name>
+		<Icon>md-feature-file</Icon>
+		<_Category>General</_Category>
+		<LanguageName>Gherkin</LanguageName>
+		<_Description>Creates an empty feature file.</_Description>
+		<DefaultFilename>EmptyFeatureFile</DefaultFilename>
+	</TemplateConfiguration>
+	
+	<TemplateFiles>
+		<File DefaultExtension=".feature" />
+	</TemplateFiles>
+	
+	<FileOptions/>
+	
+</Template>

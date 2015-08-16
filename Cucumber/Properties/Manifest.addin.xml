@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionModel>
+	<Extension path = "/MonoDevelop/Core/StockIcons">
+		<StockIcon stockid = "md-feature-file" icon = "md-file-source" size="Menu" />
+		<StockIcon stockid = "md-ruby-file"    icon = "md-file-source" size="Menu" />
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Ide/FileFilters">
+		<FileFilter
+			id = "FEATURE"
+			insertbefore = "AllFiles"
+			_label = "Feature Files"
+			extensions = "*.feature"/>
+		<FileFilter
+			id = "RUBY"
+			insertbefore = "AllFiles"
+			_label = "Ruby Files"
+			extensions = "*.rb"/>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Ide/FileTemplates">
+		<FileTemplate id = "EmptyFeatureFile" resource = "EmptyFeatureFile.xft.xml"/>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Ide/ProjectTemplates">
+		<!-- Cucumber -->
+		<ProjectTemplate id = "EmptyCucumberProject" resource = "EmptyCucumberProject.xpt.xml"/>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Core/MimeTypes">
+		<MimeType id="text/x-gherkin" icon="md-feature-file" isText="true">
+			<File pattern="*.feature" />
+		</MimeType>
+		<MimeType id="text/x-ruby" _description="Ruby" icon="md-ruby-file" isText="true">
+			<File pattern="*.rb" />
+		</MimeType>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/ProjectModel/ProjectBindings">
+		<ProjectBinding id = "CucumberProject" class = "CucumberBinding.CucumberProjectBinding"/>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/ProjectModel/LanguageBindings">
+		<LanguageBinding
+			id = "Gherkin"
+		    supportedextensions = ".feature"
+		    class = "CucumberBinding.GherkinLanguageBinding"/>
+    </Extension>
+    
+	<Extension path="/MonoDevelop/Ide/GlobalOptionsDialog/Projects">
+		<Section
+			id = "CucumberBindingOptions"
+			_label = "Cucumber"
+			class = "CucumberBinding.GeneralOptionsPanelBinding"/>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Ide/TextEditorExtensions">
+		<Class fileExtensions=".feature" class = "CucumberBinding.GherkinTextEditorExtension" />
+		<Class fileExtensions=".feature" class = "CucumberBinding.FeatureOutlineTextEditorExtension" />
+	</Extension>
+
+	<Extension path="/MonoDevelop/ProjectModel/SerializableClasses">
+		<DataType class="CucumberBinding.CucumberProjectConfiguration"/>
+		<DataType class="CucumberBinding.CucumberProject"/>
+	</Extension>
+	
+	<Extension path="/MonoDevelop/ProjectModel/MSBuildItemTypes">
+		<SolutionItem type="CucumberBinding.CucumberProject" extension="cuproj" guid="{7E5E6DFF-D44F-4813-BDCB-D350BA87FA4F}"/>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/TypeSystem/Parser">
+		<Parser class="CucumberBinding.Parser.GherkinDocumentParser" mimeType = "text/x-gherkin" />
+	</Extension>
+
+	<Extension path = "/MonoDevelop/SourceEditor2/CustomModes">
+		<SyntaxMode mimeTypes="text/x-gherkin" class="CucumberBinding.Highlighting.GherkinSyntaxMode"/>
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Ide/CompletionCharacters">
+		<Complete language="Gherkin" commitOnSpace="True" commitChars=":|&lt;&gt;"/>
+	</Extension>
+
+<!--	<Extension path = "/MonoDevelop/Ide/Pads/ClassPad">
+		<NodeBuilder id = "CucumberBinding.Navigation.FeatureNodeBuilder" class="CBinding.Navigation.FeatureNodeBuilder"/>
+	</Extension>-->
+</ExtensionModel>
