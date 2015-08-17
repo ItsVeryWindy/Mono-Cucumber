@@ -32,7 +32,7 @@ namespace CucumberBinding.Parser
 			public Func<Table> Table { get; set; }
 			public Func<Step> Step { get; set; }
 			public Func<DocString> DocString { get; set; }
-			public List<TableRow> TableRows { get; set; }
+			public IList<TableRow> TableRows { get; set; }
 
 			public string RemainingContent {
 				get {
@@ -227,6 +227,9 @@ namespace CucumberBinding.Parser
 
 		static bool AddScenario (ParserContext context)
 		{
+			if (context.Step != null)
+				context.Steps.Add (context.Step ());
+
 			if (context.Scenario != null)
 				context.Scenarios.Add (context.Scenario ());
 			
