@@ -53,12 +53,13 @@
     <Compile Include="Parser\TableHeader.cs" />
     <Compile Include="Parser\TableRow.cs" />
     <Compile Include="Parser\ProjectInformationManager.cs" />
-    <Compile Include="Parser\GivenWhenThen.cs" />
     <Compile Include="Gui\FeatureOutlineTextEditorExtension.cs" />
     <Compile Include="Parser\Examples.cs" />
     <Compile Include="Parser\Background.cs" />
     <Compile Include="Parser\DocString.cs" />
     <Compile Include="Parser\Placeholder.cs" />
+    <Compile Include="Parser\Step.cs" />
+    <Compile Include="Parser\TaggedItem.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Manifest.addin.xml" />
@@ -99,7 +100,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="Mono.Posix, Version=2.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756" />
+    <Reference Include="Mono.Posix" />
     <Reference Include="gtk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f" />
     <Reference Include="gdk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f" />
     <Reference Include="glib-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f" />

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.ObjectModel;
-using System.Collections.Generic;
-using MonoDevelop.Projects;
-using CucumberBinding.Navigation;
+﻿using System.Collections.Generic;
 
 namespace CucumberBinding.Parser
 {

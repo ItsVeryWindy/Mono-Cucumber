@@ -5,7 +5,7 @@ namespace CucumberBinding.Parser
 {
 	public class Background : Scenario
 	{
-		public Background (IList<GivenWhenThen> actions, string file, int line, int column) : base(actions, "Background", file, line, column)
+		public Background (IList<Step> actions, IList<string> tags, string file, int line, int column) : base(actions, tags, "Background", file, line, column)
 		{
 		}
 	}

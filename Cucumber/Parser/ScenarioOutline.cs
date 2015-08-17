@@ -9,7 +9,7 @@ namespace CucumberBinding.Parser
 			private set;
 		}
 
-		public ScenarioOutline (Examples examples, IList<GivenWhenThen> actions, string name, string file, int line, int column) : base(actions, name, file, line, column)
+		public ScenarioOutline (Examples examples, IList<Step> actions, IList<string> tags, string name, string file, int line, int column) : base(actions, tags, name, file, line, column)
 		{
 			Examples = examples;
 		}

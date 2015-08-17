@@ -13,6 +13,34 @@ namespace CucumberBinding.Parser
 {
 	public class GherkinDocumentParser : TypeSystemParser
 	{
+		class ParserContext
+		{
+			public IList<Feature> Features { get; set; }
+			public IList<string> Tags { get; set; }
+			public Func<Feature> Feature { get; set; }
+			public IList<Scenario> Scenarios { get; set; }
+			public int Column { get; set; }
+			public bool IsWord { get; set; }
+			public string Keyword { get; set; }
+			public int LineNumber { get; set; }
+			public string Content { get; set; }
+			public string FileName { get; set; }
+			public IList<Error> Errors { get; set; }
+			public Func<Scenario> Scenario { get; set; }
+			public Func<Examples> Examples { get; set; }
+			public IList<Step> Steps { get; set; }
+			public Func<Table> Table { get; set; }
+			public Func<Step> Step { get; set; }
+			public Func<DocString> DocString { get; set; }
+			public List<TableRow> TableRows { get; set; }
+
+			public string RemainingContent {
+				get {
+					return Content.Substring (Column + Keyword.Length - 1).Trim ();
+				}
+			}
+		}
+
 		public override ParsedDocument Parse (bool storeAst, string fileName, TextReader reader, Project project = null)
 		{
 			var doc = new DefaultParsedDocument (fileName);
@@ -28,233 +56,343 @@ namespace CucumberBinding.Parser
 			{
 				var file = pi.GetFile(fileName);
 
-				var features = new List<Feature> ();
+				var keys = new List<Tuple<Func<ParserContext, bool>, Func<ParserContext, bool>, HashSet<string>>> ();
 
-				AddFeature (doc, fileName, features, doc.TopLevelTypeDefinitions, contentLines);
+				AddParser (keys, e => e.DocString == null, AddTag, "@");
+				AddParser (keys, e => e.DocString == null, AddFeature, "Feature:");
+				AddParser (keys, e => e.DocString == null && e.Feature != null, AddScenario, "Scenario:", "Scenario Outline:", "Background:");
+				AddParser (keys, e => e.DocString == null && e.Scenario != null, AddExamples, "Examples:");
+				AddParser (keys, e => e.DocString == null && e.Scenario != null && e.Examples == null, AddSteps, "Given", "When", "Then", "And", "But");
+				AddParser (keys, e => e.DocString == null && e.Scenario != null && (e.Step != null || e.Examples != null) && e.Table == null, AddTable, "|");
+				AddParser (keys, e => e.DocString == null && e.Scenario != null && (e.Step != null || e.Examples != null) && e.Table != null, AddTableRow, "|");
+				AddParser (keys, e => e.Scenario != null && e.Step != null, AddDocString, "\"\"\"");
 
-				file.Features = features;
+				var context = new ParserContext
+				{
+					FileName = doc.FileName,
+					Errors = doc.Errors,
+					Tags = new List<string>(),
+					Features = new List<Feature>()
+				};
+
+				ExecuteParsers (context, keys, contentLines);
+
+				file.Features = context.Features;
 			}
 
 			return doc;
 		}
 
-		static void AddFeature (ParsedDocument doc, string nameSpace, List<Feature> features, IList<IUnresolvedTypeDefinition> collection, string[] contentLines)
+		void AddParser (List<Tuple<Func<ParserContext, bool>, Func<ParserContext, bool>, HashSet<string>>> keys, Func<ParserContext, bool> predicate, Func<ParserContext, bool> action, params string[] keywords)
 		{
-			int line;
-			int startColumn;
-			string keyword;
+			keys.Add (new Tuple<Func<ParserContext, bool>, Func<ParserContext, bool>, HashSet<string>> (predicate, action, new HashSet<string>(keywords)));
+		}
 
-			for (var i = 0; i < contentLines.Length; i++) {
-				if (!FindItemStart (contentLines, i, contentLines.Length, false, true, out line, out startColumn, out keyword, "Feature:")) {
-					return;
+		void ExecuteParsers(ParserContext context, List<Tuple<Func<ParserContext, bool>, Func<ParserContext, bool>, HashSet<string>>> keys, string[] contentLines)
+		{
+			for (var i = 0; i < contentLines.Length; i++)
+			{
+				string line = contentLines [i];
+
+				for(int j = 0; j < line.Length; j++)
+				{
+					char c = line [j];
+
+					if (char.IsWhiteSpace (c))
+						continue;
+
+					if (c == '#')
+						break;
+
+					bool found = false;
+					bool failed = false;
+
+					foreach(var key in keys)
+					{
+						if (!key.Item1 (context))
+							continue;
+						
+						foreach (var keyword in key.Item3) {
+							if (j + keyword.Length > line.Length)
+								continue;
+
+							if (line.IndexOf (keyword, j, keyword.Length) < 0)
+								continue;
+
+							var isWord = j + keyword.Length >= line.Length || char.IsWhiteSpace (line [j + keyword.Length]);
+
+							context.Content = line;
+							context.LineNumber = i + 1;
+							context.Keyword = keyword;
+							context.IsWord = isWord;
+							context.Column = j + 1;
+
+							failed = !key.Item2 (context);
+
+							found = true;
+
+							break;
+						}
+
+						if (found)
+							break;
+					}
+						
+					if (found && !failed)
+						break;
+					else if (!string.IsNullOrWhiteSpace (line)) {
+						AddDefault (context);
+						break;
+					}
+				}	
+			}
+
+			if(contentLines.Length > 0) {
+				foreach(var key in keys)
+				{
+					if (!key.Item1 (context))
+						continue;
+
+					context.Content = null;
+					context.LineNumber = contentLines.Length;
+					context.Keyword = null;
+					context.Column = contentLines[contentLines.Length - 1].Length;
+
+					key.Item2 (context);
+
 				}
+			}
+		}
+			
+		static Regex tagExpression = new Regex ("(?:^|\\s*)(@[^\\s]+)(?:$|\\s*)", RegexOptions.Compiled);
 
-				var scenarios = new List<Scenario> ();
-
-				var feature = new Feature (scenarios, contentLines[line - 1].Substring(startColumn + keyword.Length - 1).Trim(), doc.FileName, line, startColumn);
-
-				features.Add (feature);
-
-				var newNameSpace = nameSpace + "." + feature.Line;
-
-				var def = new DefaultUnresolvedTypeDefinition (newNameSpace, feature.Name);
-
-				i = FindItemEnd (contentLines, feature.Line, contentLines.Length, true, "Feature:") - 1;
-
-				AddScenario (doc, newNameSpace, feature.Line, i + 1, scenarios, def.NestedTypes, contentLines);
-
-				def.Region = new DomRegion ((int)feature.Line, 1, i + 2, 1);
-				def.Kind = TypeKind.Class;
-
-				collection.Add (def);
+		static void AddDefault(ParserContext context)
+		{
+			if (context.Scenario != null) {
+				if (context.Steps.Count == 0) {
+					context.Errors.Add (new Error (ErrorType.Error, "Expecting Given, When or Then", new DomRegion (context.LineNumber, context.Column, context.LineNumber, 1 + context.Content.Length)));
+				}
 			}
 		}
 
-		static void AddScenario (ParsedDocument doc, string nameSpace, int startLine, int endLine, List<Scenario> scenarios, IList<IUnresolvedTypeDefinition> collection, string[] contentLines)
+		static bool AddTag(ParserContext context)
 		{
-			int line;
-			int startColumn;
-			string keyword;
+			if (context.Keyword == null)
+				return false;
 
-			for (var i = startLine; i < endLine; i++) {
-				if (!FindItemStart (contentLines, i, endLine, true, true, out line, out startColumn, out keyword, "Background:", "Scenario Outline:", "Scenario:")) {
-					return;
-				}
-					
-				i = FindItemEnd (contentLines, line, endLine, true, "Background:", "Scenario Outline:", "Scenario:") - 1;
+			var matches = tagExpression.Matches(context.Content);
 
-				var actions = new List<GivenWhenThen> ();
+			foreach (Match match in matches) {
+				var p = match.Groups [1];
 
-				var def = new DefaultUnresolvedTypeDefinition (nameSpace + "." + line, "");
+				context.Tags.Add (p.ToString());
+			}
 
-				def.Region = new DomRegion (line, 1, i + 2, 1);
-				def.Kind = TypeKind.Class;
+			return true;
+		}
 
-				int endSteps;
+		static bool AddFeature (ParserContext context)
+		{
+			if (context.Feature != null)
+				context.Features.Add (context.Feature ());
 
-				var result = AddSteps (doc, keyword == "Scenario Outline:", line, i + 1, actions, def, contentLines, out endSteps);
+			if (context.Step != null)
+				context.Steps.Add (context.Step ());
 
-				Scenario scenario = null;
+			if (context.Scenario != null) {
+				context.Scenarios.Add (context.Scenario ());
+			}
 
-				switch (keyword) {
-					case "Scenario Outline:":
-						var examples = result ? AddExamples (doc, endSteps, i + 1, contentLines) : null;
+			context.Scenario = null;
+			context.Step = null;
 
-						if (examples == null && actions.Count > 0 && result) {
-							doc.Errors.Add (new Error (ErrorType.Error, "Expecting Examples for Scenario Outline", new DomRegion(line, startColumn, line, startColumn + keyword.Length)));
+			if (context.Keyword == null || !context.IsWord)
+				return false;
+			
+			var scenarios = new List<Scenario> ();
+			context.Scenarios = scenarios;
+
+			var tags = context.Tags;
+			context.Tags = new List<string> ();
+
+			var content = context.RemainingContent;
+			var fileName = context.FileName;
+			var line = context.LineNumber;
+			var column = context.Column;
+
+			context.Feature = () => new Feature (scenarios, tags, content, fileName, line, column);
+
+			return true;
+		}
+
+		static bool AddScenario (ParserContext context)
+		{
+			if (context.Scenario != null)
+				context.Scenarios.Add (context.Scenario ());
+			
+			if (context.Keyword == null || !context.IsWord)
+				return false;
+
+			var steps = new List<Step> ();
+
+			context.Steps = steps;
+			context.Examples = null;
+			context.Table = null;
+
+			var tags = context.Tags;
+			context.Tags = new List<string> ();
+
+			var content = context.RemainingContent;
+			var fileName = context.FileName;
+			var line = context.LineNumber;
+			var column = context.Column;
+			var keyword = context.Keyword;
+
+			switch (context.Keyword) {
+				case "Scenario Outline:":
+					context.Scenario = () => {
+						if (context.Examples == null && steps.Count > 0) {
+							context.Errors.Add (new Error (ErrorType.Error, "Expecting Examples for Scenario Outline", new DomRegion (line, column, line, column + keyword.Length)));
 						}
 
-						if(examples != null && examples.Table != null && examples.Table.Header != null)
-						{
-							foreach(var j in actions) {
-								foreach(var k in j.Placeholders) {
-									if (!examples.Table.Header.Columns.Contains (k.Name)) {
-										doc.Errors.Add(new Error(ErrorType.Warning, "Placeholder does not match column in table", new DomRegion(k.Line, k.Column, line, k.Column + k.Name.Length)));
+						Examples examples = null;
+
+						if (context.Examples != null) {
+							examples = context.Examples();
+					
+							if (examples.Table != null && examples.Table.Header != null) {
+								foreach (var j in steps) {
+									foreach (var k in j.Placeholders) {
+										if (!examples.Table.Header.Columns.Contains (k.Name)) {
+											context.Errors.Add (new Error (ErrorType.Warning, "Placeholder does not match column in table", new DomRegion (k.Line, k.Column, line, k.Column + k.Name.Length)));
+										}
 									}
 								}
 							}
 						}
 
-						scenario = new ScenarioOutline (examples, actions, contentLines [line - 1].Substring (startColumn + keyword.Length - 1).Trim (), doc.FileName, line, startColumn);
-						break;
-					case "Scenario:":
-						scenario = new Scenario (actions, contentLines [line - 1].Substring (startColumn + keyword.Length - 1).Trim (), doc.FileName, line, startColumn);
-						break;
-					case "Background:":
-						scenario = new Background (actions, doc.FileName, line, startColumn);
-						break;
-				}
-
-				scenarios.Add (scenario);
-
-				collection.Add (def);
+						return new ScenarioOutline (examples, steps, tags, content, fileName, line, column);
+					};
+					break;
+				case "Scenario:":
+				context.Scenario = () => new Scenario (steps, tags, content, fileName, line, column);
+					break;
+				case "Background:":
+				context.Scenario = () => new Background (steps, tags, fileName, line, column);
+					break;
 			}
-		}
-
-		static Regex parameterExpression = new Regex ("<([^>]*)>", RegexOptions.Compiled);
-
-		static bool AddSteps (ParsedDocument doc, bool isScenarioOutline, int startLine, int endLine, List<GivenWhenThen> actions, IUnresolvedTypeDefinition type, string[] contentLines, out int endSteps)
-		{
-			int line;
-			int startColumn;
-			string keyword;
-			endSteps = 0;
-
-			for (var i = startLine; i < endLine; i++) {
-				if (i > startLine && isScenarioOutline) {
-					if (!FindItemStart (contentLines, i, endLine, false, true, out line, out startColumn, out keyword, "Given", "When", "Then", "Examples:", "And", "But")) {
-						doc.Errors.Add (new Error (ErrorType.Error, "Expected Given, When or Then", new DomRegion(line, 1, line, 1 + contentLines[line - 1].Length)));
-						return false;
-					}
-
-					if (keyword == "Examples:") {
-						endSteps = line - 1;
-						return true;
-					}
-				} else {
-					if (!FindItemStart (contentLines, i, endLine, false, true, out line, out startColumn, out keyword, "Given", "When", "Then")) {
-						doc.Errors.Add (new Error (ErrorType.Error, "Expected Given, When or Then", new DomRegion(line, 1, line, 1 + contentLines[line - 1].Length)));
-						return false;
-					}
-				}
-
-				i = FindItemEnd (contentLines, line, endLine, false, "Examples:", "Given", "When", "Then") - 1;
-
-				var table = AddTable (doc, line, endLine, contentLines);
-
-				if (table != null) {
-					if (table.Rows != null && table.Header != null && table.Rows.Any (e => e.Cells.Count != table.Header.Columns.Count)) {
-						doc.Errors.Add (new Error (ErrorType.Error, "Table is uneven", new DomRegion (table.Line, table.Column, table.Line, 1 + contentLines [table.Line - 1].Length)));
-					}
-
-					if (table.Header != null)
-						i++;
-					if (table.Rows != null)
-						i += table.Rows.Count;
-				}
-
-				var docString = table == null ? AddDocString(doc, line, contentLines) : null;
-
-				if (docString != null) {
-					i += docString.Lines + 2;
-				}
-
-				var placeholders = new List<Placeholder>();
-
-				var matches = parameterExpression.Matches(contentLines[line - 1]);
-
-				foreach (Match match in matches) {
-					var p = match.Groups [1];
-
-					placeholders.Add (new Placeholder(p.ToString(), doc.FileName, line, p.Index + 1));
-				}
-
-				var action = new GivenWhenThen(placeholders, table, docString, contentLines [line - 1].Substring (startColumn + keyword.Length - 1).Trim (), doc.FileName, line, startColumn);
-
-				actions.Add (action);
-
-				var def = new DefaultUnresolvedMethod (type, action.Name);
-
-				def.Region = new DomRegion (action.Line, 1, i + 2, 1);
-
-				type.Members.Add (def);
-			}
-
-			endSteps = endLine;
 
 			return true;
 		}
 
-		static Examples AddExamples (ParsedDocument doc, int startLine, int endLine, string[] contentLines)
+		static Regex parameterExpression = new Regex ("<([^>]*)>", RegexOptions.Compiled);
+
+		static bool AddSteps (ParserContext context)
 		{
-			int line;
-			int startColumn;
-			string keyword;
+			if (context.Step != null)
+				context.Steps.Add (context.Step ());
 
-			if (!FindItemStart (contentLines, startLine, endLine, false, true, out line, out startColumn, out keyword, "Examples:")) {
-				return null;
+			if (context.Keyword == null || !context.IsWord)
+				return false;
+
+			context.Table = null;
+
+			var placeholders = new List<Placeholder>();
+			var fileName = context.FileName;
+			var line = context.LineNumber;
+			var column = context.Column;
+			var content = context.RemainingContent;
+
+			var matches = parameterExpression.Matches(context.Content);
+
+			foreach (Match match in matches) {
+				var p = match.Groups [1];
+
+				placeholders.Add (new Placeholder(p.ToString(), fileName, line, p.Index + 1));
 			}
 
-			var table = AddTable (doc, line, endLine, contentLines);
+			context.Step = () => {
 
-			if (table == null) {
-				doc.Errors.Add(new Error(ErrorType.Error, "Expecting Table for Examples", line, startColumn));
-			}
-			else if (table.Rows != null && table.Header != null && table.Rows.Any (e => e.Cells.Count != table.Header.Columns.Count)) {
-				doc.Errors.Add (new Error (ErrorType.Error, "Table is uneven", new DomRegion (table.Line, table.Column, table.Line, 1 + contentLines [table.Line - 1].Length)));
-			}
+				Table table = null;
 
-			var examples = new Examples (table, doc.FileName, line, startColumn);
-		
-			return examples;
+				if (context.Table != null) {
+					table = context.Table ();
+				}
+
+				DocString docString = null;
+
+				if (table == null && context.DocString != null) {
+					docString = context.DocString ();
+				}
+
+				return new Step (placeholders, table, docString, content, fileName, line, column);
+			};
+
+			return true;
 		}
 
-		static Table AddTable (ParsedDocument doc, int startLine, int endLine, string[] contentLines)
+		static bool AddExamples (ParserContext context)
 		{
-			int line;
-			int startColumn;
-			string keyword;
+			if (context.Keyword == null || !context.IsWord)
+				return false;
 
-			if (!FindItemStart (contentLines, startLine, endLine, false, false, out line, out startColumn, out keyword, "|")) {
-				return null;
+			if (context.Step != null)
+				context.Steps.Add (context.Step ());			
+
+			context.Table = null;
+
+			var tags = context.Tags;
+			context.Tags = new List<string> ();
+
+			var fileName = context.FileName;
+			var line = context.LineNumber;
+			var column = context.Column;
+
+			if (context.Steps.Count == 0) {
+				context.Errors.Add (new Error (ErrorType.Error, "Expecting Given, When or Then", new DomRegion (context.LineNumber, context.Column, context.LineNumber, 1 + context.Content.Length)));
 			}
 
-			var header = AddTableHeader (contentLines[line - 1]);
+			context.Examples = () => {
+				Table table = null;
+
+				if (context.Table == null) {
+					context.Errors.Add(new Error(ErrorType.Error, "Expecting Table for Examples", line, column));
+				}
+				else
+				{
+					table = context.Table();
+				}
+
+				return new Examples (table, tags, fileName, line, column);
+			};
+
+			return true;
+		}
+
+		static bool AddTable (ParserContext context)
+		{
+			if (context.Keyword == null)
+				return false;
+
+			var header = AddTableHeader(context.Content);
 
 			var rows = new List<TableRow> ();
 
-			for (var i = line; i < endLine; i++) {
-				var row = AddTableRow (contentLines[i]);
+			context.TableRows = rows;
 
-				if (row == null)
-					break;
+			var fileName = context.FileName;
+			var line = context.LineNumber;
+			var column = context.Column;
 
-				rows.Add (row);
-			}
+			context.Table = () => {
+				if (rows.Any (e => e.Cells.Count != header.Columns.Count)) {
+					context.Errors.Add (new Error (ErrorType.Error, "Table is uneven", new DomRegion (line, column, line + 1, 1)));
+				}
 
-			var table = new Table (header, rows, doc.FileName, line, startColumn);
+				return new Table (header, rows, fileName, line, column);
+			};
 
-			return table;
+			return true;
 		}
 
 		static bool GetNextCell(string line, int start, out int index)
@@ -297,63 +435,57 @@ namespace CucumberBinding.Parser
 			return new TableHeader (columns);
 		}
 
-		static TableRow AddTableRow(string line)
+		static bool AddTableRow(ParserContext context)
 		{
+			if (context.Keyword == null)
+				return false;
+
 			var cells = new List<string> ();
 
 			int a;
 			int b;
 
-			if (!GetNextCell (line, 0, out a)) {
-				return null;
+			if (!GetNextCell (context.Content, 0, out a)) {
+				return false;
 			}
 
 			a++;
 
-			for (; a < line.Length; a++) {
-				if (!GetNextCell (line, a, out b)) {
-					return null;
+			for (; a < context.Content.Length; a++) {
+				if (!GetNextCell (context.Content, a, out b)) {
+					return false;
 				}
 
-				cells.Add (line.Substring (a, b - a).Trim());
+				cells.Add (context.Content.Substring (a, b - a).Trim());
 
 				a = b;
 			}
 
-			return new TableRow (cells);
+			context.TableRows.Add(new TableRow (cells));
+
+			return true;
 		}
 
-		static DocString AddDocString (ParsedDocument doc, int startLine, string[] contentLines)
+		static bool AddDocString (ParserContext context)
 		{
-			int line;
-			int startColumn;
-			string keyword;
+			if (context.Keyword == null ||!context.IsWord)
+				return false;
 
-			if (!FindItemStart (contentLines, startLine, startLine + 1, false, true, out line, out startColumn, out keyword, "\"\"\"")) {
-				return null;
+			if (context.DocString != null) {
+				context.DocString = null;
+				return true;
 			}
+				
+			var fileName = context.FileName;
+			var line = context.LineNumber;
+			var column = context.Column;
 
-			var end = FindItemEnd (contentLines, line, contentLines.Length, true, "\"\"\"");
+			context.DocString = () => new DocString (fileName, line, column);
 
-			var content = string.Join (Environment.NewLine, contentLines, line, end - line);
-
-			var docString = new DocString (content, end - line, doc.FileName, line, startColumn);
-
-			return docString;
+			return true;
 		}
 
-//		static void AddAction (DefaultUnresolvedTypeDefinition parent, GivenWhenThen action, string[] contentLines)
-//		{
-//			var def = new DefaultUnresolvedMethod(parent, action.Name);
-//
-//			def.Region = new DomRegion ((int)action.Line, 1, FindItemEnd (contentLines, action.Line, "Given", "When", "Then", "And", "But", "Scenario:", "Scenario Outline:", "Background:", "Examples:"), 1);
-//
-//			AddParameters(action, def);
-//
-//			parent.Members.Add (def);
-//		}
-
-		static void AddPlaceholders(GivenWhenThen action, IUnresolvedMethod method)
+		static void AddPlaceholders(Step action, IUnresolvedMethod method)
 		{
 			var parameters = new List<IUnresolvedParameter> ();
 

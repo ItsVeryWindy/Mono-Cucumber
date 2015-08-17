@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 
 namespace CucumberBinding.Parser
 {
-	public class GivenWhenThen : Item
+	public class Step : Item
 	{
 		public Table Table {
 			get;
@@ -21,7 +21,7 @@ namespace CucumberBinding.Parser
 			private set;
 		}
 
-		public GivenWhenThen (IList<Placeholder> placeholders, Table table, DocString docString, string name, string file, int line, int column) : base(name, file, line, column)
+		public Step (IList<Placeholder> placeholders, Table table, DocString docString, string name, string file, int line, int column) : base(name, file, line, column)
 		{
 			Placeholders = new ReadOnlyCollection<Placeholder> (placeholders);
 			Table = table;

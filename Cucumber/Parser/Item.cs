@@ -2,7 +2,7 @@
 
 namespace CucumberBinding.Parser
 {
-	public abstract class Item
+	public class Item
 	{
 		public string Name {
 			get;
